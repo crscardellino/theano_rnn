@@ -30,15 +30,13 @@ def process_newsgroups_document(document):
 
 print "Fetching and processing 20 Newsgroup"
 sys.stdout.flush()
-newsgroups = fetch_20newsgroups(subset='all')
+newsgroups = fetch_20newsgroups(subset='all',
+                                categories=['comp.graphics', 'comp.os.ms-windows.misc', 'comp.sys.ibm.pc.hardware',
+                                            'comp.sys.mac.hardware', 'comp.windows.x'])
 vectorizer = text.CountVectorizer(analyzer='word', preprocessor=process_newsgroups_document, max_features=5000)
 newsgroups_dataset = vectorizer.fit_transform(newsgroups.data).todense().astype(theano.config.floatX)
 newsgroups_target = newsgroups.target
 ng_X_train, ng_X_test, ng_y_train, ng_y_test = train_test_split(newsgroups_dataset, newsgroups_target, test_size=0.2)
-ng_X_train = ng_X_train[:4000]
-ng_y_train = ng_y_train[:4000]
-ng_X_test = ng_X_test[4000:5000]
-ng_y_test = ng_y_test[4000:5000]
 
 print "Converting train variables to theano"
 sys.stdout.flush()
