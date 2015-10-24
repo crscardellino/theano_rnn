@@ -31,10 +31,14 @@ def process_newsgroups_document(document):
 print "Fetching and processing 20 Newsgroup"
 sys.stdout.flush()
 newsgroups = fetch_20newsgroups(subset='all')
-vectorizer = text.CountVectorizer(analyzer='word', preprocessor=process_newsgroups_document, max_features=10000)
-newsgroups_dataset = vectorizer.fit_transform(newsgroups.data[:10000]).todense().astype(theano.config.floatX)
-newsgroups_target = newsgroups.target[:10000]
+vectorizer = text.CountVectorizer(analyzer='word', preprocessor=process_newsgroups_document, max_features=5000)
+newsgroups_dataset = vectorizer.fit_transform(newsgroups.data).todense().astype(theano.config.floatX)
+newsgroups_target = newsgroups.target
 ng_X_train, ng_X_test, ng_y_train, ng_y_test = train_test_split(newsgroups_dataset, newsgroups_target, test_size=0.2)
+ng_X_train = ng_X_train[:4000]
+ng_y_train = ng_y_train[:4000]
+ng_X_test = ng_X_test[4000:5000]
+ng_y_test = ng_y_test[4000:5000]
 
 print "Converting train variables to theano"
 sys.stdout.flush()
@@ -47,12 +51,12 @@ sys.stdout.flush()
 N = newsgroups_dataset.shape[0]  # Number of examples in the dataset.
 n_input = newsgroups_dataset.shape[1]  # Number of features of the dataset. Input of the Neural Network.
 n_output = len(newsgroups.target_names)  # Number of classes in the dataset. Output of the Neural Network.
-n_h1 = 5000  # Size of the first layer
-n_h2 = 2500  # Size of the second layer
+n_h1 = 2500  # Size of the first layer
+n_h2 = 1000  # Size of the second layer
 alpha = 0.01  # Learning rate parameter
 lambda_reg = 0.01  # Lambda value for regularization
-epochs = 5000  # Number of epochs for gradient descent
-batch_size = 64  # Size of the minibatches to perform sgd
+epochs = 1000  # Number of epochs for gradient descent
+batch_size = 128  # Size of the minibatches to perform sgd
 train_batches = ng_X_train.get_value().shape[0] / batch_size
 
 print "Defining computational graph"
@@ -64,7 +68,11 @@ y = T.lvector('y')
 
 # First layer weight matrix and bias
 W1 = theano.shared(
-    value=np.random.uniform(size=(n_input, n_h1)).astype(theano.config.floatX),
+    value=np.random.uniform(
+        low=-np.sqrt(6. / (n_input + n_h1)),
+        high=np.sqrt(6. / (n_input + n_h1)),
+        size=(n_input, n_h1)
+    ).astype(theano.config.floatX),
     name='W1',
     borrow=True
 )
@@ -76,7 +84,11 @@ b1 = theano.shared(
 
 # Second layer weight matrix and bias
 W2 = theano.shared(
-    value=np.random.uniform(size=(n_h1, n_h2)).astype(theano.config.floatX),
+    value=np.random.uniform(
+        low=-np.sqrt(6. / (n_h1 + n_h2)),
+        high=np.sqrt(6. / (n_h1 + n_h2)),
+        size=(n_h1, n_h2)
+    ).astype(theano.config.floatX),
     name='W2',
     borrow=True
 )
@@ -88,7 +100,11 @@ b2 = theano.shared(
 
 # Output layer weight matrix and bias
 W3 = theano.shared(
-    value=np.random.uniform(size=(n_h2, n_output)).astype(theano.config.floatX),
+    value=np.random.uniform(
+        low=-np.sqrt(6. / (n_h2 + n_output)),
+        high=np.sqrt(6. / (n_h2 + n_output)),
+        size=(n_h2, n_output)
+    ).astype(theano.config.floatX),
     name='W3',
     borrow=True
 )
@@ -107,7 +123,7 @@ a2 = T.tanh(z2)  # Size: N x n_h2
 z3 = T.dot(a2, W3) + b3  # Size: N x n_output
 y_out = T.nnet.softmax(z3)  # Size: N x n_output
 
-y_pred = T.argmax(y_out, axis=1) # Size: N
+y_pred = T.argmax(y_out, axis=1)  # Size: N
 
 # Regularization term to sum in the loss function
 loss_reg = 1./N * lambda_reg/2 * (T.sum(T.sqr(W1)) + T.sum(T.sqr(W2)) + T.sum(T.sqr(W3)))
@@ -160,7 +176,7 @@ for i in xrange(epochs):  # We train for epochs times
     for mini_batch in xrange(train_batches):
         gradient_step(mini_batch)
 
-    if i % 250 == 0:
+    if i % 50 == 0:
         print "Loss for iteration {}: {}".format(
             i, loss_calculation(ng_X_train.get_value(), ng_y_train.get_value())
         )
