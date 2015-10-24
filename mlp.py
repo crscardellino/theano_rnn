@@ -30,9 +30,7 @@ def process_newsgroups_document(document):
 
 print "Fetching and processing 20 Newsgroup"
 sys.stdout.flush()
-newsgroups = fetch_20newsgroups(subset='all',
-                                categories=['comp.graphics', 'comp.os.ms-windows.misc', 'comp.sys.ibm.pc.hardware',
-                                            'comp.sys.mac.hardware', 'comp.windows.x'])
+newsgroups = fetch_20newsgroups(subset='all')
 vectorizer = text.CountVectorizer(analyzer='word', preprocessor=process_newsgroups_document, max_features=5000)
 newsgroups_dataset = vectorizer.fit_transform(newsgroups.data).todense().astype(theano.config.floatX)
 newsgroups_target = newsgroups.target
@@ -53,7 +51,7 @@ n_h1 = 2500  # Size of the first layer
 n_h2 = 1000  # Size of the second layer
 alpha = 0.01  # Learning rate parameter
 lambda_reg = 0.01  # Lambda value for regularization
-epochs = 1000  # Number of epochs for gradient descent
+epochs = 500  # Number of epochs for gradient descent
 batch_size = 128  # Size of the minibatches to perform sgd
 train_batches = ng_X_train.get_value().shape[0] / batch_size
 
@@ -189,5 +187,5 @@ print "Accuracy: {:.3f}".format(accuracy_score(ng_y_test, predictions))
 sys.stdout.flush()
 
 print "Classification report"
-print classification_report(ng_y_test, predictions, labels=newsgroups.target_names)
+print classification_report(ng_y_test, predictions, target_names=newsgroups.target_names)
 sys.stdout.flush()
