@@ -29,10 +29,7 @@ class Corpus(object):
         self.characters = sorted(characters)
 
     def character_encoder(self, char):
-        vector = np.zeros((len(self.characters),), dtype='int64')
-        vector[self.characters.index(char)] = 1
-
-        return vector.astype(theano.config.floatX)
+        return self.characters.index(char)
 
     def __iter__(self):
         for work_name, work in self.corpus.iteritems():
@@ -55,14 +52,14 @@ n_h = 50  # Size of the hidden layer
 print >> sys.stderr, "Declaring Theano variables"
 sys.stderr.flush()
 # Stateless variables to handle the input
-X = T.matrix('X')
-y = T.lvector('y')
+X = T.ivector('X')
+y = T.ivector('y')
 
 W_hx = theano.shared(
     value=np.random.uniform(
         low=-1.0,
         high=1.0,
-        size=(n_in, n_h)
+        size=(n_h, n_in)
     ).astype(theano.config.floatX),
     name='W_hx',
     borrow=True
@@ -88,7 +85,7 @@ W_S = theano.shared(
     value=np.random.uniform(
         low=-1.0,
         high=1.0,
-        size=(n_h, n_out)
+        size=(n_out, n_h)
     ).astype(theano.config.floatX),
     name='W_S',
     borrow=True
@@ -100,16 +97,10 @@ b_S = theano.shared(
     borrow=True
 )
 
-h0 = theano.shared(
-    value=np.zeros(n_h, dtype=theano.config.floatX),
-    name='h0',
-    borrow=True
-)
-
 
 def forward_propagation_step(x_t, h_t_prev, W_hx, W_hh, b_h, W_S, b_S):
-    h_t = T.tanh(T.dot(x_t, W_hx) + T.dot(h_t_prev, W_hh) + b_h)
-    y_t = T.nnet.softmax(T.dot(h_t, W_S) + b_S)
+    h_t = T.tanh(W_hx[:, x_t] + T.dot(h_t_prev, W_hh) + b_h)
+    y_t = T.nnet.softmax(T.dot(W_S, h_t) + b_S)
 
     return [h_t, y_t]
 
@@ -119,9 +110,9 @@ sys.stderr.flush()
 [h, y_out], _ = theano.scan(
     forward_propagation_step,
     sequences=X,
-    outputs_info=[h0, None],
+    outputs_info=[dict(initial=T.zeros(n_h)), None],
     non_sequences=[W_hx, W_hh, b_h, W_S, b_S],
-    truncate_gradient=100,
+    truncate_gradient=50,
     n_steps=X.shape[0]
 )
 
@@ -172,16 +163,16 @@ y_train = []
 
 for char in corpus:
     X_train.append(char)
-    y_train.append(np.where(char == 1)[0][0])
+    y_train.append(char)
 
-X_train = np.vstack(X_train[:-1])
-y_train = np.array(y_train[1:])
+X_train = np.array(X_train[:-1]).astype('int32')
+y_train = np.array(y_train[1:]).astype('int32')
 
 print >> sys.stderr, "Begin training"
 sys.stderr.flush()
 
-for i in xrange(1, 1000, 128):  # We train for epochs times
-    for j in xrange(y_train.shape[0]):
+for i in xrange(1, 1000):  # We train for epochs times
+    for j in xrange(y_train.shape[0], 128):
         gradient_step(X_train[j:j+128], y_train[j:j+128], 0.01)
 
     if i % 100 == 0:
@@ -190,25 +181,15 @@ for i in xrange(1, 1000, 128):  # We train for epochs times
         )
         sys.stderr.flush()
 
-        # Generate a 5000 characters text
+        # Generate a 2000 characters text
 
-        random_char = corpus.characters[np.random.randint(28, 82)]
-
-        characters = [(
-                random_char,
-                corpus.character_encoder(random_char)
-            )]
+        characters_indexes = [np.random.randint(28, 82)]
         # The first character is alphabetic random
 
-        for j in xrange(5000):
-            char_vectors = np.vstack([vector for _, vector in characters])
-            next_char = corpus.characters[predict(char_vectors)[-1]]
-            characters.append((
-                    next_char,
-                    corpus.character_encoder(next_char)
-                ))
+        for j in xrange(2000):
+            characters_indexes.append(predict(np.hstack(characters_indexes).astype('int32'))[-1])
 
-        print "".join([char for char, _ in characters])
+        print "".join([corpus.characters[char] for char in characters_indexes])
         print
         print "#" * 100
         print
