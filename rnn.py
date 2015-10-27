@@ -32,7 +32,7 @@ class Corpus(object):
         vector = np.zeros((len(self.characters),), dtype='int64')
         vector[self.characters.index(char)] = 1
 
-        return vector
+        return vector.astype(theano.config.floatX)
 
     def __iter__(self):
         for work_name, work in self.corpus.iteritems():
@@ -180,16 +180,17 @@ y_train = np.array(y_train[1:])
 print >> sys.stderr, "Begin training"
 sys.stderr.flush()
 
-for i in xrange(1, 1000):  # We train for epochs times
-    for j in xrange(y_train.shape[0], 10):
-        gradient_step(X_train[j:j+10], y_train[j:j+10], 0.001)
+for i in xrange(1, 1000, 128):  # We train for epochs times
+    for j in xrange(y_train.shape[0]):
+        gradient_step(X_train[j:j+128], y_train[j:j+128], 0.01)
 
-    if i % 50 == 0:
+    if i % 100 == 0:
         print >> sys.stderr, "Loss for iteration {}: {}".format(
             i, loss_calculation(X_train, y_train)
         )
+        sys.stderr.flush()
 
-        # Generate a 1000 characters text
+        # Generate a 5000 characters text
 
         random_char = corpus.characters[np.random.randint(28, 82)]
 
@@ -199,7 +200,7 @@ for i in xrange(1, 1000):  # We train for epochs times
             )]
         # The first character is alphabetic random
 
-        for j in xrange(1000):
+        for j in xrange(5000):
             char_vectors = np.vstack([vector for _, vector in characters])
             next_char = corpus.characters[predict(char_vectors)[-1]]
             characters.append((
@@ -208,3 +209,7 @@ for i in xrange(1, 1000):  # We train for epochs times
                 ))
 
         print "".join([char for char, _ in characters])
+        print
+        print "#" * 100
+        print
+        sys.stdout.flush()
