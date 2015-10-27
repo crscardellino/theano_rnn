@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import numpy as np
@@ -5,6 +6,7 @@ import os
 import sys
 import theano
 import theano.tensor as T
+
 
 class Corpus(object):
     def __init__(self, corpus_path):
@@ -41,6 +43,8 @@ class Corpus(object):
     def __len__(self):
         return self.length
 
+print >> sys.stderr, "Getting corpus"
+sys.stderr.flush()
 corpus = Corpus("corpus/borges")
 
 NT = len(corpus)  # Number of examples (timesteps)
@@ -48,6 +52,8 @@ n_in = len(corpus.characters)  # Size of the input data (one-hot vector of a cha
 n_out = len(corpus.characters)  # Size of the output data (one-hot vector of a character)
 n_h = 50  # Size of the hidden layer
 
+print >> sys.stderr, "Declaring Theano variables"
+sys.stderr.flush()
 # Stateless variables to handle the input
 X = T.matrix('X')
 y = T.lvector('y')
@@ -107,6 +113,9 @@ def forward_propagation_step(x_t, h_t_prev, W_hx, W_hh, b_h, W_S, b_S):
 
     return [h_t, y_t]
 
+print >> sys.stderr, "Declaring Theano Loop and Graph"
+sys.stderr.flush()
+
 [h, y_out], _ = theano.scan(
     forward_propagation_step,
     sequences=X,
@@ -122,12 +131,15 @@ y_pred = T.argmax(p_y_given_x, axis=1)
 
 loss = T.nnet.categorical_crossentropy(p_y_given_x, y).mean()
 
+print >> sys.stderr, "Getting gradients"
+sys.stderr.flush()
 dWhx = T.grad(loss, wrt=W_hx)
 dWhh = T.grad(loss, wrt=W_hh)
 dbh = T.grad(loss, wrt=b_h)
 dWS = T.grad(loss, wrt=W_S)
 dbS = T.grad(loss, wrt=b_S)
 
+print >> sys.stderr, "Compiling functions"
 forward_propagation = theano.function([X], y_out)
 loss_calculation = theano.function([X, y], loss)
 predict = theano.function([X], y_pred)
@@ -135,6 +147,8 @@ predict = theano.function([X], y_pred)
 
 alpha = T.scalar('alpha')
 
+print >> sys.stderr, "Declaring gradients"
+sys.stderr.flush()
 updates = [
     (W_hx, W_hx - alpha * dWhx),
     (W_hh, W_hh - alpha * dWhh),
@@ -149,6 +163,10 @@ gradient_step = theano.function(
     updates=updates
 )
 
+
+print >> sys.stderr, "Getting dataset"
+sys.stderr.flush()
+
 X_train = []
 y_train = []
 
@@ -158,6 +176,9 @@ for char in corpus:
 
 X_train = np.vstack(X_train[:-1])
 y_train = np.array(y_train[1:])
+
+print >> sys.stderr, "Begin training"
+sys.stderr.flush()
 
 for i in xrange(1, 1000):  # We train for epochs times
     for j in xrange(y_train.shape[0], 10):
